@@ -1,4 +1,4 @@
-package application
+package begonia
 
 import (
 	"fmt"
@@ -11,16 +11,21 @@ type Handle struct {
 	Method string
 	Fun    func(ctx *Context)
 	Header []string
+	next *Handle
 }
 
-type Context struct {
-	Param  map[string]string
-	Header http.Header
-	R      *http.Request
-	W      http.ResponseWriter
+func (h *Handle) getMethod() string {
+	return h.Method
 }
 
-func (h *Handle) execFun(w http.ResponseWriter, r *http.Request) {
+func (h *Handle) getUri() string {
+	return h.Uri
+
+}
+
+
+
+func (h *Handle) exec(w http.ResponseWriter, r *http.Request) {
 	ctx := &Context{}
 	ctx.R = r
 	ctx.W = w

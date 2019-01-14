@@ -1,4 +1,4 @@
-package application
+package begonia
 
 import (
 	"fmt"
@@ -7,9 +7,8 @@ import (
 )
 
 type RouteAction interface {
-	hasChild() bool
-	execHandle(http.ResponseWriter, *http.Request)
-	addHandle(Handle)
+	getHandle(method string, uri string) (*Handle, error)
+	addHandle(*Handle)
 	initialization([]string)
 }
 
@@ -38,7 +37,15 @@ func (app *Application) Start(port int) {
 }
 
 func (app *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	app.Route.execHandle(w, r)
+	length := len(r.RequestURI)
+	println(r.RequestURI)
+	if r.RequestURI[length-1] == '/' {
+		r.RequestURI = r.RequestURI[0 : length-1]
+	}
+	h, err := app.Route.getHandle(r.Method, r.RequestURI)
+	if err == nil {
+		h.
+	}
 }
 
 func (impl *Application) SetRouteAction(r RouteAction) {
@@ -46,7 +53,7 @@ func (impl *Application) SetRouteAction(r RouteAction) {
 }
 
 func (impl *Application) SetHashRoute() {
-	impl.Route = &HashRoute{}
+	impl.Route = &route.HashRoute{}
 }
 
 //func (impl *Application) SetTreeRoute(){
@@ -61,7 +68,7 @@ func (impl *Application) setRouteAction(r RouteAction) {
 	impl.Route = r
 }
 
-func (app *Application) AddHandle(h Handle) {
+func (app *Application) AddHandle(h *Handle) {
 	length := len(h.Uri)
 	if h.Uri[length-1] == '/' {
 		h.Uri = h.Uri[0 : length-1]
@@ -78,11 +85,11 @@ func (app *Application) AddBeen(been interface{}) {
 }
 
 func (app *Application) Get(uri string, f func(*Context)) {
-	h := Handle{Uri: uri, Method: "GET", Fun: f}
+	h := &Handle{Uri: uri, Method: "GET", Fun: f}
 	app.AddHandle(h)
 }
 
 func (app *Application) Post(uri string, f func(*Context)) {
-	h := Handle{Uri: uri, Method: "POST", Fun: f}
+	h := &Handle{Uri: uri, Method: "POST", Fun: f}
 	app.AddHandle(h)
 }
