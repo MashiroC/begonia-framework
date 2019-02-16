@@ -17,7 +17,13 @@ type HashRoute struct {
 	handleExistMap map[string]bool
 }
 
-func (hash *HashRoute) getHandle(method string, uri string) (h *Handle, err error) {
+//判断路由是否为空，为空可以更换实现方式。
+//比如哈希表换成trie树
+func (hash *HashRoute) isEmpty() bool {
+	return len(hash.handleExistMap) == 0
+}
+
+func (hash *HashRoute) getHandle(method, uri string) (h *Handle, err error) {
 	handles := hash.handles[method]
 	h, ok := handles[uri]
 	if ok {
@@ -39,9 +45,10 @@ func (hash *HashRoute) initialization(args []string) {
 }
 
 func (hash *HashRoute) addHandle(h *Handle) {
-	handleMap := hash.handles[h.Method]
-	if handleMap == nil {
+	handleMap, ok := hash.handles[h.Method]
+	if !ok {
 		handleMap = make(map[string]*Handle)
+		hash.handles[h.Method] = handleMap
 	}
 
 	handle, ok := handleMap[h.Uri]

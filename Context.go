@@ -13,7 +13,7 @@ type Context struct {
 func (c *Context) Next() {
 	if c.this.next != nil {
 		c.this = c.this.next
-		c.this.next.Fun(c)
+		c.this.Fun(c)
 	} else {
 		panic("handle not has next")
 	}
