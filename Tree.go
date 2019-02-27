@@ -36,7 +36,7 @@ func (n *Node) AddChild(path string, h interface{}) {
 	}
 
 	//找到最长公共前缀
-	minLength := min(len(path), len(n.Path))
+	minLength := Min(len(path), len(n.Path))
 	i := 0
 	for i < minLength && path[i] == n.Path[i] {
 		i++
@@ -50,7 +50,11 @@ func (n *Node) AddChild(path string, h interface{}) {
 				return
 			}
 		}
-		n.insertNode(path[i:], h)
+		if i < len(path) {
+			n.insertNode(path[i:], h)
+		} else {
+			n.handle = h
+		}
 		return
 		//panic("寻找公共前缀出了点问题 " + n.Path + " " + path)
 	}
@@ -77,19 +81,20 @@ func (n *Node) splitNode(i int) (newNode *Node) {
 
 	n.Path = n.Path[:i]
 	n.priority = n.priority + 1
-	n.quickFind=string([]byte{newNode.Path[0]})
-	n.children=[]*Node{newNode}
+	n.quickFind = string([]byte{newNode.Path[0]})
+	n.children = []*Node{newNode}
 
 	return
 }
 
-func (n *Node) insertNode( path string, handle interface{}) {
+func (n *Node) insertNode(path string, handle interface{}) {
 
 	//新添加的部分
 	newNode := &Node{
 		Path:     path,
 		nodeType: Normal,
 		priority: 1,
+		handle:   handle,
 	}
 	if n.children == nil {
 		n.children = []*Node{newNode}
@@ -99,6 +104,7 @@ func (n *Node) insertNode( path string, handle interface{}) {
 		n.children = nodes
 	}
 	n.quickFind = n.quickFind + string([]byte{newNode.Path[0]})
+
 }
 
 func (n *Node) getValue(path string) {
