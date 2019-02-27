@@ -69,7 +69,7 @@ func (app *application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				param[key] = value[0]
 			}
 		} else {
-			contentType := strings.Split(r.Header["Content-Type"][0], "/")[1]
+			contentType := strings.Split(r.Header["Content-nodeType"][0], "/")[1]
 			if contentType == "x-www-form-urlencoded" {
 				r.ParseForm()
 				vars := r.PostForm
