@@ -1,5 +1,7 @@
 package begonia
 
+import "fmt"
+
 type Tree struct {
 	n *Node
 }
@@ -43,7 +45,7 @@ func (n *Node) AddChild(path string, h interface{}) {
 	}
 	//如果该节点是最后一个节点
 	if i != 0 && i == len(n.Path) {
-		for j := 0; j < len(n.children); j++ {
+		for j := 0; j < len(n.quickFind); j++ {
 			if n.quickFind[j] == path[i] {
 				//TODO 判断新加入节点对于参数节点的影响合不合法
 				n.children[j].AddChild(path[i:], h)
@@ -58,44 +60,82 @@ func (n *Node) AddChild(path string, h interface{}) {
 		return
 		//panic("寻找公共前缀出了点问题 " + n.Path + " " + path)
 	}
-
 	//不是最后一个节点
-	_ = n.splitNode(i)
-	n.insertNode(path[i:], h)
+	n.splitNode(i)
+	//fmt.Println(n.Path, path, i, len(n.Path), len(path))
+	if i == len(path) {
+		fmt.Println(n.Path, path, i, len(n.Path), len(path))
+		n.handle = h
+	} else if i >= len(n.Path) {
+		n.insertNode(path[i:], h)
+	}
 }
 
 func (n *Node) splitNode(i int) (newNode *Node) {
 
 	if n.nodeType != Normal {
-		panic("只能分割normal结点")
+		panic("只能分割normal结点,已有参数节点")
 	}
 	//原来的后面那部分
-	newNode = &Node{
-		Path:      n.Path[i:],
-		children:  n.children,
-		nodeType:  n.nodeType,
-		quickFind: n.quickFind,
-		priority:  n.priority,
-		handle:    n.handle,
-	}
+	newNode = CopyNode(n)
+	newNode.Path = n.Path[i:]
 
 	n.Path = n.Path[:i]
 	n.priority = n.priority + 1
 	n.quickFind = string([]byte{newNode.Path[0]})
 	n.children = []*Node{newNode}
+	n.handle = nil
 
 	return
 }
 
-func (n *Node) insertNode(path string, handle interface{}) {
+func (n *Node) insertNode(path string, handle interface{}) (newNode *Node) {
+	//具有参数节点
+	for i := 0; i < len(path); i++ {
+		// /asd/:asd/zxcasd/zxcv
+		// /asd/:asd/zxchdgfh
+		if path[i] == ':' {
 
-	//新添加的部分
-	newNode := &Node{
-		Path:     path,
-		nodeType: Normal,
-		priority: 1,
-		handle:   handle,
+			//fmt.Println(path)
+			if i != 0 {
+				firstNode := NewNode(path[:i])
+				n.children = append(n.children, firstNode)
+				n.quickFind = n.quickFind + string([]byte{firstNode.Path[0]})
+				n = firstNode
+			}
+
+			j := i
+			for j < len(path) && path[j] != '/' {
+				j++
+			}
+
+			if n.Path[0] == ':' {
+				panic("已有参数节点")
+			}
+
+			secondNode := NewNode(path[i:j])
+			secondNode.nodeType = Param
+			secondNode.priority = 0
+
+			n.children = append(n.children, secondNode)
+			n.quickFind = n.quickFind + string([]byte{secondNode.Path[0]})
+
+			if j < len(path) && j != i {
+				secondNode.insertNode(path[j:], handle)
+			} else {
+				secondNode.handle = handle
+				newNode = secondNode
+			}
+			return
+		}
 	}
+	if n.nodeType == Param && path[0] != '/' {
+		panic("一个节点下只应有一个参数节点")
+	}
+	//新添加的部分
+	newNode = NewNode(path)
+	newNode.handle = handle
+
 	if n.children == nil {
 		n.children = []*Node{newNode}
 		n.priority = n.priority + 1
@@ -104,7 +144,28 @@ func (n *Node) insertNode(path string, handle interface{}) {
 		n.children = nodes
 	}
 	n.quickFind = n.quickFind + string([]byte{newNode.Path[0]})
+	return
+}
 
+func NewNode(path string) (newNode *Node) {
+	newNode = &Node{
+		Path:     path,
+		nodeType: Normal,
+		priority: 1,
+	}
+	return
+}
+
+func CopyNode(n *Node) (newNode *Node) {
+	newNode = &Node{
+		Path:      n.Path,
+		children:  n.children,
+		nodeType:  n.nodeType,
+		quickFind: n.quickFind,
+		priority:  n.priority,
+		handle:    n.handle,
+	}
+	return
 }
 
 func (n *Node) getValue(path string) {

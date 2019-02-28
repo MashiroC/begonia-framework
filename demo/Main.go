@@ -56,13 +56,12 @@ func (n *Node) AddChild(path string, h interface{}) {
 	//找到最长公共前缀
 	minLength := Min(len(path), len(n.Path))
 	i := 0
-	for i < minLength && path[i] == n.Path[i] && path[i] != ':' {
+	for i < minLength && path[i] == n.Path[i] {
 		i++
 	}
 	//如果该节点是最后一个节点
 	if i != 0 && i == len(n.Path) {
-
-		for j := 0; j < len(n.children); j++ {
+		for j := 0; j < len(n.quickFind); j++ {
 			if n.quickFind[j] == path[i] {
 				//TODO 判断新加入节点对于参数节点的影响合不合法
 				n.children[j].AddChild(path[i:], h)
@@ -79,13 +78,19 @@ func (n *Node) AddChild(path string, h interface{}) {
 	}
 	//不是最后一个节点
 	n.splitNode(i)
-	n.insertNode(path[i:], h)
+	//fmt.Println(n.Path, path, i, len(n.Path), len(path))
+	if i == len(path) {
+		fmt.Println(n.Path, path, i, len(n.Path), len(path))
+		n.handle = h
+	} else if i >= len(n.Path) {
+		n.insertNode(path[i:], h)
+	}
 }
 
 func (n *Node) splitNode(i int) (newNode *Node) {
 
 	if n.nodeType != Normal {
-		panic("只能分割normal结点")
+		panic("只能分割normal结点,已有参数节点")
 	}
 	//原来的后面那部分
 	newNode = CopyNode(n)
@@ -95,6 +100,7 @@ func (n *Node) splitNode(i int) (newNode *Node) {
 	n.priority = n.priority + 1
 	n.quickFind = string([]byte{newNode.Path[0]})
 	n.children = []*Node{newNode}
+	n.handle = nil
 
 	return
 }
@@ -105,30 +111,42 @@ func (n *Node) insertNode(path string, handle interface{}) (newNode *Node) {
 		// /asd/:asd/zxcasd/zxcv
 		// /asd/:asd/zxchdgfh
 		if path[i] == ':' {
-			//fmt.Println(n.children[0])
+
+			//fmt.Println(path)
 			if i != 0 {
 				firstNode := NewNode(path[:i])
 				n.children = append(n.children, firstNode)
+				n.quickFind = n.quickFind + string([]byte{firstNode.Path[0]})
 				n = firstNode
 			}
+
 			j := i
 			for j < len(path) && path[j] != '/' {
 				j++
 			}
+
+			if n.Path[0] == ':' {
+				panic("已有参数节点")
+			}
+
 			secondNode := NewNode(path[i:j])
 			secondNode.nodeType = Param
-			secondNode.priority=0
-			n.children = append(n.children,secondNode)
+			secondNode.priority = 0
+
+			n.children = append(n.children, secondNode)
+			n.quickFind = n.quickFind + string([]byte{secondNode.Path[0]})
 
 			if j < len(path) && j != i {
-				n = secondNode
-				path = path[j:]
-				break
+				secondNode.insertNode(path[j:], handle)
 			} else {
+				secondNode.handle = handle
 				newNode = secondNode
-				return
 			}
+			return
 		}
+	}
+	if n.nodeType == Param && path[0] != '/' {
+		panic("一个节点下只应有一个参数节点")
 	}
 	//新添加的部分
 	newNode = NewNode(path)
@@ -177,9 +195,11 @@ type TreeAction interface {
 
 func main() {
 	n := Node{nodeType: Root, Path: "/"}
-	n.AddChild("/test/asd/zxcv", nil)
-	n.AddChild("/test/:asd/", nil)
-	n.AddChild("/test/:zxc/asd",nil)
+	n.AddChild("/test/asd/zxcv", 1)
+	n.AddChild("/test/asd/zxc", 2)
+	n.AddChild("/test/zxc/zxc", 3)
+	n.AddChild("/test/:asd/zxc/:zxc", 5)
+	//n.AddChild("/test/:zxc/",nil)
 	n.printNode(0)
 }
 
@@ -187,7 +207,11 @@ func (n *Node) printNode(i int) {
 	for z := 0; z < i*3; z++ {
 		fmt.Print(" ")
 	}
-	fmt.Println(n.Path)
+	fmt.Print(n.Path+" ")
+	if n.handle!=nil {
+		fmt.Print(n.handle)
+	}
+	fmt.Println()
 	for z := 0; z < len(n.children); z++ {
 		n.children[z].printNode(i + 1)
 	}
