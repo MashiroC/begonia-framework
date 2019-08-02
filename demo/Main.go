@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"regexp"
+	"strings"
 )
 
 //func main() {
@@ -18,6 +21,8 @@ import (
 //	app.Start(1234)
 //}
 
+var getR *Node
+
 type Tree struct {
 	n *Node
 }
@@ -32,6 +37,8 @@ const (
 )
 
 type Node struct {
+	Parent    *Node
+	RealPath  string
 	Path      string
 	children  []*Node
 	nodeType  NodeType
@@ -40,16 +47,21 @@ type Node struct {
 	handle    interface{}
 }
 
-func (n *Node) AddChild(path string, h interface{}) {
+func (n *Node) AddRoute(path string, h interface{}) {
 
-	if len(n.Path) == 0 {
-		n.Path = path
-		n.priority = 1
-		n.handle = h
-		return
-	}
+	n.AddChild(path, h, path)
+}
 
-	if n.Path == path {
+func (n *Node) AddChild(path string, h interface{}, realPath string) {
+
+	//if len(n.Path) == 0 {
+	//	n.Path = path
+	//	n.priority = 1
+	//	n.handle = h
+	//	return
+	//}
+
+	if n.Path == path && path[0] != ':' {
 		panic("两条相同路由")
 	}
 
@@ -61,11 +73,14 @@ func (n *Node) AddChild(path string, h interface{}) {
 	}
 	//如果该节点是最后一个节点
 	if i != 0 && i == len(n.Path) {
-		for j := 0; j < len(n.quickFind); j++ {
-			if n.quickFind[j] == path[i] {
-				//TODO 判断新加入节点对于参数节点的影响合不合法
-				n.children[j].AddChild(path[i:], h)
-				return
+		if n.Path != path {
+			for j := 0; j < len(n.quickFind); j++ {
+				if n.quickFind[j] == path[i] {
+					//TODO 判断新加入节点对于参数节点的影响合不合法
+					//n.RealPath=path[:i]
+					n.children[j].AddChild(path[i:], h, realPath)
+					return
+				}
 			}
 		}
 		if i < len(path) {
@@ -80,8 +95,8 @@ func (n *Node) AddChild(path string, h interface{}) {
 	n.splitNode(i)
 	//fmt.Println(n.Path, path, i, len(n.Path), len(path))
 	if i == len(path) {
-		fmt.Println(n.Path, path, i, len(n.Path), len(path))
 		n.handle = h
+
 	} else if i >= len(n.Path) {
 		n.insertNode(path[i:], h)
 	}
@@ -90,6 +105,9 @@ func (n *Node) AddChild(path string, h interface{}) {
 func (n *Node) splitNode(i int) (newNode *Node) {
 
 	if n.nodeType != Normal {
+		getR.printNode(0)
+		//fmt.Println()
+		//fmt.Println(n.Path)
 		panic("只能分割normal结点,已有参数节点")
 	}
 	//原来的后面那部分
@@ -99,6 +117,7 @@ func (n *Node) splitNode(i int) (newNode *Node) {
 	n.Path = n.Path[:i]
 	n.priority = n.priority + 1
 	n.quickFind = string([]byte{newNode.Path[0]})
+
 	n.children = []*Node{newNode}
 	n.handle = nil
 
@@ -117,6 +136,9 @@ func (n *Node) insertNode(path string, handle interface{}) (newNode *Node) {
 				firstNode := NewNode(path[:i])
 				n.children = append(n.children, firstNode)
 				n.quickFind = n.quickFind + string([]byte{firstNode.Path[0]})
+
+				//fmt.Println("quick:" + n.quickFind + " firstNode:" + firstNode.Path + " path:" + path + " n.Path:" + n.Path)
+
 				n = firstNode
 			}
 
@@ -193,13 +215,41 @@ type TreeAction interface {
 	getValue(path string)
 }
 
+func addTestData(n *Node, method string) {
+	f, err := ioutil.ReadFile("C:\\Users\\mashi\\Desktop\\routeTest.txt")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	data := string(f)
+
+	arr := strings.Split(data, "\n")
+	for i, row := range arr {
+		d := strings.Fields(row)
+		if d[0] == method {
+			m, err := regexp.Compile("{.*?}")
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			regs := m.FindAllString(d[1], -1)
+			for _, v := range regs {
+				value := v[1:]
+				value = value[:len(value)-1]
+				d[1] = strings.Replace(d[1], v, ":"+value, -1)
+			}
+			//fmt.Println(d[1],i)
+			n.AddRoute(d[1], i)
+		}
+
+	}
+}
+
 func main() {
-	n := Node{nodeType: Root, Path: "/"}
-	n.AddChild("/test/asd/zxcv", 1)
-	n.AddChild("/test/asd/zxc", 2)
-	n.AddChild("/test/zxc/zxc", 3)
-	n.AddChild("/test/:asd/zxc/:zxc", 5)
-	//n.AddChild("/test/:zxc/",nil)
+
+	n := &Node{nodeType: Root, Path: "/"}
+	getR = n
+	addTestData(n, "PUT")
+
 	n.printNode(0)
 }
 
@@ -207,10 +257,14 @@ func (n *Node) printNode(i int) {
 	for z := 0; z < i*3; z++ {
 		fmt.Print(" ")
 	}
-	fmt.Print(n.Path+" ")
-	if n.handle!=nil {
+	fmt.Print(n.Path + " ")
+
+	if n.handle != nil {
 		fmt.Print(n.handle)
 	}
+	//fmt.Print(" " + n.quickFind)
+	fmt.Print(" " + n.RealPath)
+
 	fmt.Println()
 	for z := 0; z < len(n.children); z++ {
 		n.children[z].printNode(i + 1)

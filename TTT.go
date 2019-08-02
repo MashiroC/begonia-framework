@@ -10,7 +10,6 @@ type NodeType uint8
 
 const (
 	Normal NodeType = iota
-	Root
 	Param
 	All
 )
@@ -43,7 +42,7 @@ func (n *Node) AddChild(path string, h interface{}) {
 	for i < minLength && path[i] == n.Path[i] {
 		i++
 	}
-	//如果该节点是最后一个节点
+	//如果该节点全部和path中的部分完全一样
 	if i != 0 && i == len(n.Path) {
 		for j := 0; j < len(n.quickFind); j++ {
 			if n.quickFind[j] == path[i] {
@@ -52,9 +51,11 @@ func (n *Node) AddChild(path string, h interface{}) {
 				return
 			}
 		}
+		//无相同 path比节点长 节点下插入新节点
 		if i < len(path) {
 			n.insertNode(path[i:], h)
 		} else {
+			//和当前节点长度相同 直接修改当前节点的handle
 			n.handle = h
 		}
 		return
@@ -92,11 +93,7 @@ func (n *Node) splitNode(i int) (newNode *Node) {
 func (n *Node) insertNode(path string, handle interface{}) (newNode *Node) {
 	//具有参数节点
 	for i := 0; i < len(path); i++ {
-		// /asd/:asd/zxcasd/zxcv
-		// /asd/:asd/zxchdgfh
 		if path[i] == ':' {
-
-			//fmt.Println(path)
 			if i != 0 {
 				firstNode := NewNode(path[:i])
 				n.children = append(n.children, firstNode)
@@ -145,6 +142,10 @@ func (n *Node) insertNode(path string, handle interface{}) (newNode *Node) {
 	}
 	n.quickFind = n.quickFind + string([]byte{newNode.Path[0]})
 	return
+}
+
+func (n *Node) sortChildren(){
+
 }
 
 func NewNode(path string) (newNode *Node) {
